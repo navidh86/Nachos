@@ -191,8 +191,13 @@ public class KThread {
 	Lib.assertTrue(toBeDestroyed == null);
 	toBeDestroyed = currentThread;
 
-
-	currentThread.status = statusFinished;
+        
+        //allow the joinThread to run now
+        if (currentThread.joinThread != null) {
+            currentThread.joinThread.ready();
+        }
+        
+        currentThread.status = statusFinished;
 	
 	sleep();
     }
@@ -276,7 +281,13 @@ public class KThread {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 	Lib.assertTrue(this != currentThread);
-
+        
+        if (this.status != statusFinished) {
+            if (joinThread == null) {
+                joinThread = currentThread;
+                sleep();
+            }
+        }
     }
 
     /**
@@ -431,6 +442,9 @@ public class KThread {
     private String name = "(unnamed thread)";
     private Runnable target;
     private TCB tcb;
+    
+    //the thread which called join on this thread first
+    private KThread joinThread = null;
 
     /**
      * Unique identifer for this thread. Used to deterministically compare
