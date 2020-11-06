@@ -433,23 +433,12 @@ public class KThread {
             }
 	});
         
-        KThread kt3 = new KThread(new Runnable() {
-	    public void run() {
-                for (int i=0; i<5; i++) {
-                    System.out.println("Kt3: " + i);
-                    yield();
-                    
-                }
-            }
-	});
         
         KThread kt2 = new KThread(new Runnable() {
             public void run() {
                 System.out.println("Start of kt 2");
                 kt1.fork();
-                kt3.fork();
                 kt1.join();
-                yield();
                 System.out.println("End of kt 2");
             }
         });
