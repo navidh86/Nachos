@@ -17,20 +17,20 @@ public class CommunicatorTest {
         Communicator c = new Communicator();
         KThread sp1 = new KThread(new Speaker(c, 1));
         KThread sp2 = new KThread(new Speaker(c, 2));
-        //KThread sp3 = new KThread(new Speaker(c, 3));
+        KThread sp3 = new KThread(new Speaker(c, 3));
         
         KThread ls1 = new KThread(new Listener(c, 1));
         KThread ls2 = new KThread(new Listener(c, 2));
         
         sp1.fork();
         sp2.fork();
-        //sp3.fork();
+        sp3.fork();
         ls1.fork();
         ls2.fork();
         
         sp1.join();
         sp2.join();
-        //sp3.join();
+        sp3.join();
         ls1.join();
         ls2.join();
     }
@@ -50,6 +50,7 @@ class Speaker implements Runnable {
     public void run() {
         for (int i=0; i<5; i++) {
             say(i);
+            KThread.yield();
         }
     }
     
@@ -70,9 +71,9 @@ class Listener implements Runnable {
     }
     
     public void run() {
-        while (count < 10) {
-            listen();
+        while (count < 15) {
             count++;
+            listen();
         }
     }
     
