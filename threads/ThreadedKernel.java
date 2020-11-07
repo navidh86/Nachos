@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import nachos.proj1.CommunicatorTest;
 
 /**
  * A multi-threaded OS kernel.
@@ -52,6 +53,8 @@ public class ThreadedKernel extends Kernel {
 	if (Machine.bank() != null) {
 	    ElevatorBank.selfTest();
 	}
+        
+        CommunicatorTest.startTest();
     }
     
     /**
