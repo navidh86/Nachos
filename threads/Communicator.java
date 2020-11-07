@@ -15,7 +15,6 @@ public class Communicator {
      */
     public Communicator() {
         this.conditionLock = new Lock();
-        this.isListening = new Condition(conditionLock);
         this.hasSpoken = new Condition(conditionLock);
         this.hasListened = new Condition(conditionLock);
         this.written = false;
@@ -43,12 +42,9 @@ public class Communicator {
             this.word = word;
             written = true;
             
-            System.out.println("Said " + word);
+            System.out.println(KThread.currentThread().getName() + " said: " + word);
             
             hasSpoken.wake();
-            isListening.sleep();
-            
-            hasListened.wake();
             
             return;
         } finally {
@@ -66,16 +62,16 @@ public class Communicator {
         conditionLock.acquire();
         
         try {
-            if (!written) {
+            while (!written) {
                 hasSpoken.sleep();
             }
             
             int ret = this.word;
             written = false;
             
-            System.out.println("Heard: " + ret);
+            System.out.println(KThread.currentThread().getName() + " heard: " + ret);
             
-            isListening.wake();
+            hasListened.wake();
             
             return ret;
         } finally {
@@ -85,7 +81,7 @@ public class Communicator {
     }
     
     private Lock conditionLock;
-    private Condition isListening, hasSpoken, hasListened;
+    private Condition hasSpoken, hasListened;
     private int word;
     private boolean written;
 }
