@@ -10,6 +10,8 @@ import nachos.threads.KThread;
  */
 public class CommunicatorTest {
     public static void startTest() {
+        System.out.println("Start of Communicator test.....");
+        
         Communicator c = new Communicator();
         KThread sp1 = new KThread(new Speaker(c, 1)).setName("Speaker 1");
         KThread sp2 = new KThread(new Speaker(c, 2)).setName("Speaker 2");
@@ -17,18 +19,18 @@ public class CommunicatorTest {
         
         KThread ls1 = new KThread(new Listener(c, 1)).setName("Listener 1");
         KThread ls2 = new KThread(new Listener(c, 2)).setName("Listener 2");
-        
+          
+        ls1.fork();
+        ls2.fork();
         sp1.fork();
         sp2.fork();
         sp3.fork();
-        ls1.fork();
-        ls2.fork();
         
+        ls1.join();
+        ls2.join();
         sp1.join();
         sp2.join();
         sp3.join();
-        ls1.join();
-        ls2.join();
     }
 }
 
@@ -57,7 +59,7 @@ class Listener implements Runnable {
     }
     
     public void run() {
-        while (count < limit) {
+        while (count < 5*speakers) {
             count++;
             int ret = this.c.listen();
         }
@@ -65,5 +67,5 @@ class Listener implements Runnable {
     
     private Communicator c;
     private int id;
-    private static int count = 0, limit = 15;
+    private static int count = 0, speakers = 3;
 }

@@ -15,9 +15,12 @@ public class Communicator {
      */
     public Communicator() {
         this.conditionLock = new Lock();
-        this.hasSpoken = new Condition(conditionLock);
-        this.hasListened = new Condition(conditionLock);
-        this.written = false;
+        this.speakerReady = new Condition(conditionLock);
+        this.listenerReady = new Condition(conditionLock);
+        this.spoke = new Condition(conditionLock);
+        this.listened = new Condition(conditionLock);
+        this.transferred = new Condition(conditionLock);
+        this.flag = false;
     }
 
     /**
@@ -34,17 +37,20 @@ public class Communicator {
         conditionLock.acquire();
         
         try {
-            while (written) {
-                hasListened.sleep();
+            while (flag) {
+                transferred.sleep();
             }      
             
+            flag = true;
+            speakerReady.wake();
+            listenerReady.sleep();
             
             this.word = word;
-            written = true;
-            
             System.out.println(KThread.currentThread().getName() + " said: " + word);
-            
-            hasSpoken.wake();
+            spoke.wake();
+            listened.sleep();
+
+            transferred.wake();
             
             return;
         } finally {
@@ -62,16 +68,18 @@ public class Communicator {
         conditionLock.acquire();
         
         try {
-            while (!written) {
-                hasSpoken.sleep();
+            if (!flag) {
+                speakerReady.sleep();
             }
+     
+            listenerReady.wake();
+            spoke.sleep();
             
             int ret = this.word;
-            written = false;
-            
             System.out.println(KThread.currentThread().getName() + " heard: " + ret);
             
-            hasListened.wake();
+            flag = false;
+            listened.wake();
             
             return ret;
         } finally {
@@ -81,7 +89,7 @@ public class Communicator {
     }
     
     private Lock conditionLock;
-    private Condition hasSpoken, hasListened;
+    private Condition speakerReady, listenerReady, spoke, listened, transferred;
     private int word;
-    private boolean written;
+    private boolean flag;
 }
