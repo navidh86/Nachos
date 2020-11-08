@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import nachos.proj1.AlarmTest;
 import nachos.proj1.CommunicatorTest;
 
 /**
@@ -55,6 +56,7 @@ public class ThreadedKernel extends Kernel {
 	}
         
         CommunicatorTest.startTest();
+        AlarmTest.startTest();
     }
     
     /**
