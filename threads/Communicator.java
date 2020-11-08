@@ -15,11 +15,11 @@ public class Communicator {
      */
     public Communicator() {
         this.conditionLock = new Lock();
-        this.speakerReady = new Condition(conditionLock);
-        this.listenerReady = new Condition(conditionLock);
-        this.spoke = new Condition(conditionLock);
-        this.listened = new Condition(conditionLock);
-        this.transferred = new Condition(conditionLock);
+        this.speakerReady = new Condition2(conditionLock);
+        this.listenerReady = new Condition2(conditionLock);
+        this.spoke = new Condition2(conditionLock);
+        this.listened = new Condition2(conditionLock);
+        this.transferred = new Condition2(conditionLock);
         this.flag = false;
     }
 
@@ -84,12 +84,11 @@ public class Communicator {
             return ret;
         } finally {
             conditionLock.release();
-        }
-        
+        }    
     }
     
     private Lock conditionLock;
-    private Condition speakerReady, listenerReady, spoke, listened, transferred;
+    private Condition2 speakerReady, listenerReady, spoke, listened, transferred;
     private int word;
     private boolean flag;
 }
