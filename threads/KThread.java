@@ -421,28 +421,6 @@ public class KThread {
 	
 	new KThread(new PingTest(1)).setName("forked thread").fork();
 	new PingTest(0).run();
-        
-        System.out.println("This runs as well . . . ");
-        KThread kt1 = new KThread(new Runnable() {
-	    public void run() {
-                for (int i=0; i<5; i++) {
-                    System.out.println("Kt1: " + i);
-                    yield();
-                    
-                }
-            }
-	});
-        
-        
-        KThread kt2 = new KThread(new Runnable() {
-            public void run() {
-                System.out.println("Start of kt 2");
-                kt1.fork();
-                kt1.join();
-                System.out.println("End of kt 2");
-            }
-        });
-        kt2.fork();
     }
 
     private static final char dbgThread = 't';
