@@ -29,7 +29,9 @@ public class UserProcess {
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
         
         //set the process ID
+        lock.acquire();
         processID = processes++;
+        lock.release();
         
         //open the file descriptors
         fileDescriptors = new OpenFile[2];
@@ -519,4 +521,6 @@ public class UserProcess {
     private int processID;
     /** total #of processes */
     private static int processes = 0;
+    /** lock to make id updates atomic */
+    private static Lock lock = new Lock();
 }
