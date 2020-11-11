@@ -27,6 +27,11 @@ public class UserProcess {
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+        
+        //open the file descriptors
+        fileDescriptors = new OpenFile[2];
+        fileDescriptors[0] = UserKernel.console.openForReading();
+        fileDescriptors[1] = UserKernel.console.openForWriting();
     }
     
     /**
@@ -346,7 +351,56 @@ public class UserProcess {
 	return 0;
     }
 
-
+    /**
+     * Handle the read(int fd, char *buffer, int size) system call. 
+     */
+    private int handleRead(int fileDescriptor, int vaddr, int size) {
+        if (fileDescriptor != stdin || vaddr < 0 || size < 0)
+            return -1;
+        
+        byte[] buffer = new byte[size];
+        
+        //number of bytes copied from console
+        int readSize = fileDescriptors[fileDescriptor].read(buffer, 0, size);
+        
+        if (readSize > 0) {
+            //number of bytes written on virual memory
+            int writeSize = writeVirtualMemory(vaddr, buffer, 0, readSize);
+            
+            if (readSize != writeSize)
+                return -1;
+            else return writeSize;
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Handle the write(int fd, char *buffer, int size) system call. 
+     */
+    private int handleWrite(int fileDescriptor, int vaddr, int size) {
+        if (fileDescriptor != stdout || vaddr < 0 || size < 0)
+            return -1;
+        
+        byte[] buffer = new byte[size];
+        
+        //number of bytes copied from virtual memory
+        int readSize = readVirtualMemory(vaddr, buffer, 0, size);
+        
+        if (readSize != size)
+            return -1;
+        else if (readSize > 0) {
+            //number of bytes written on console
+            int writeSize = fileDescriptors[fileDescriptor].write(buffer, 0, readSize);
+            
+            if (readSize != writeSize)
+                return -1;
+            else return writeSize;
+        }
+        
+        return 0;
+    }
+    
     private static final int
         syscallHalt = 0,
 	syscallExit = 1,
@@ -391,6 +445,10 @@ public class UserProcess {
 	switch (syscall) {
 	case syscallHalt:
 	    return handleHalt();
+        case syscallRead:
+            return handleRead(a0, a1, a2);
+        case syscallWrite:
+            return handleWrite(a0, a1, a2);
 
 
 	default:
@@ -446,4 +504,9 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+    
+    /***** for proj 2 *****/
+    /** The page descriptors of this process. */
+    private OpenFile[] fileDescriptors;
+    private static final int stdin = 0, stdout = 1;
 }
