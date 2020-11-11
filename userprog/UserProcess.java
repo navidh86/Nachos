@@ -24,9 +24,9 @@ public class UserProcess {
      */
     public UserProcess() {
 	int numPhysPages = Machine.processor().getNumPhysPages();
-	pageTable = new TranslationEntry[numPhysPages];
-	for (int i=0; i<numPhysPages; i++)
-	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+	//pageTable = new TranslationEntry[numPhysPages];
+	//for (int i=0; i<numPhysPages; i++)
+	//    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
         
         //set the process ID
         lock.acquire();
@@ -147,8 +147,23 @@ public class UserProcess {
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
 
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(memory, vaddr, data, offset, amount);
+	//int amount = Math.min(length, memory.length-vaddr);
+	//System.arraycopy(memory, vaddr, data, offset, amount);
+        
+        int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
+        for (int i=0; i<maxAmount; i++) {
+            int vpn = Processor.pageFromAddress(vaddr+i);
+            
+            TranslationEntry entry = pageTable[vpn];
+            
+            if (entry == null || !entry.valid)
+                break;
+            
+            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
+            data[i] = memory[paddr];
+            amount++;
+            entry.used = true;
+        }
 
 	return amount;
     }
@@ -190,8 +205,23 @@ public class UserProcess {
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
 
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(data, offset, memory, vaddr, amount);
+	//int amount = Math.min(length, memory.length-vaddr);
+	//System.arraycopy(data, offset, memory, vaddr, amount);
+        
+        int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
+        for (int i=0; i<maxAmount; i++) {
+            int vpn = Processor.pageFromAddress(vaddr+i);
+            
+            TranslationEntry entry = pageTable[vpn];
+            
+            if (entry == null || !entry.valid || entry.readOnly)
+                break;
+            
+            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr));
+            memory[paddr] = data[i];
+            amount++;
+            entry.used = entry.dirty = true;
+        }
 
 	return amount;
     }
@@ -297,6 +327,10 @@ public class UserProcess {
 	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
 	    return false;
 	}
+        
+        //init the page table
+        pageTable = new TranslationEntry[numPages];
+        int pagesEntered = 0;
 
 	// load sections
 	for (int s=0; s<coff.getNumSections(); s++) {
@@ -307,11 +341,46 @@ public class UserProcess {
 
 	    for (int i=0; i<section.getLength(); i++) {
 		int vpn = section.getFirstVPN()+i;
-
-		// for now, just assume virtual addresses=physical addresses
-		section.loadPage(i, vpn);
+                int ppn = UserKernel.getNewPage();
+                
+                if (ppn == -1) {
+                    coff.close();
+                    Lib.debug(dbgProcess, "\tinsufficient free memory");
+                    return false;
+                }
+                
+                //add a new entry in the page table
+                pageTable[pagesEntered++] = new TranslationEntry(vpn, ppn, true, section.isReadOnly(), false, false);
+                
+		//load the page
+		section.loadPage(i, ppn);
 	    }
 	}
+        
+        //add the stack pages to the page table
+        for (int i=0; i<stackPages; i++) {
+            int ppn = UserKernel.getNewPage();
+            
+            if (ppn == -1) {
+                coff.close();
+                Lib.debug(dbgProcess, "\tinsufficient free memory");
+                return false;
+            }
+            
+            pageTable[pagesEntered] = new TranslationEntry(pagesEntered, ppn, true, false, false, false);
+            pagesEntered++;
+        }
+        
+        //add the argument page
+        int ppn = UserKernel.getNewPage();
+        
+        if (ppn == -1) {
+            coff.close();
+            Lib.debug(dbgProcess, "\tinsufficient free memory");
+            return false;
+        }
+        
+        pageTable[numPages-1] = new TranslationEntry(numPages-1, ppn, true, false, false, false);
 	
 	return true;
     }
@@ -320,6 +389,10 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+        for (int i=0; i<numPages; i++) {
+            pageTable[i].valid = false;
+            UserKernel.freePage(pageTable[i].ppn);
+        }
     }    
 
     /**
