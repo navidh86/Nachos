@@ -160,7 +160,7 @@ public class UserProcess {
                 break;
             
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
-            data[i] = memory[paddr];
+            data[i+offset] = memory[paddr];
             amount++;
             entry.used = true;
         }
@@ -218,7 +218,7 @@ public class UserProcess {
                 break;
             
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr));
-            memory[paddr] = data[i];
+            memory[paddr] = data[i+offset];
             amount++;
             entry.used = entry.dirty = true;
         }
