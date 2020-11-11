@@ -28,6 +28,9 @@ public class UserProcess {
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
         
+        //set the process ID
+        processID = processes++;
+        
         //open the file descriptors
         fileDescriptors = new OpenFile[2];
         fileDescriptors[0] = UserKernel.console.openForReading();
@@ -344,7 +347,9 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-
+        if (processID != 0)
+            return -1;
+        
 	Machine.halt();
 	
 	Lib.assertNotReached("Machine.halt() did not halt machine!");
@@ -509,4 +514,9 @@ public class UserProcess {
     /** The page descriptors of this process. */
     private OpenFile[] fileDescriptors;
     private static final int stdin = 0, stdout = 1;
+    
+    /** The id of this process */
+    private int processID;
+    /** total #of processes */
+    private static int processes = 0;
 }
