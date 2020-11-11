@@ -29,7 +29,7 @@ public class UThread extends KThread {
 	process.restoreState();
 
 	Machine.processor().run();
-	
+        System.out.println("program run ended");
 	Lib.assertNotReached();
     }
     

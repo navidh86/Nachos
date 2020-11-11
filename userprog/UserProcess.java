@@ -5,6 +5,8 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -37,6 +39,9 @@ public class UserProcess {
         fileDescriptors = new OpenFile[2];
         fileDescriptors[0] = UserKernel.console.openForReading();
         fileDescriptors[1] = UserKernel.console.openForWriting();
+
+        parentProcessID = -1;
+        childProcesses = new LinkedList<>();
     }
     
     /**
@@ -61,8 +66,9 @@ public class UserProcess {
     public boolean execute(String name, String[] args) {
 	if (!load(name, args))
 	    return false;
-	
-	new UThread(this).setName(name).fork();
+
+	processThread = new UThread(this).setName(name);
+	processThread.fork();
 
 	return true;
     }
@@ -480,6 +486,55 @@ public class UserProcess {
         
         return 0;
     }
+
+    /**
+     * Handle the exec(char *name, int argc, char **argv); system call.
+     */
+
+    private int handleExec(int nameVAddress, int argc, int argvVAddress) {
+        Lib.assertTrue(argc >= 0);
+        String fileName = readVirtualMemoryString(nameVAddress, maxFileNameSize);
+        String[] argv = new String[argc];
+
+        int stringOffset = argvVAddress + argc * 4;
+        for (int i = 0; i < argc; i++) {
+            argv[i] = readVirtualMemoryString(stringOffset, Processor.pageSize);
+            stringOffset += argv[i].length() + 1;
+        }
+
+        UserProcess child = UserProcess.newUserProcess();
+        child.setParentProcessID(processID);
+        childProcesses.add(child);
+        System.out.println("creating child " + child.processID + " of " + processID);
+        child.execute(fileName, argv);
+        return child.processID;
+    }
+
+
+    /**
+     * Handle the join(int pid, int *status) system call.
+     */
+
+    private int handleJoin(int pid, int statusVAddress) {
+        for (UserProcess child : childProcesses) {
+            if (pid == child.processID) {
+                System.out.println("Starting join");
+                child.processThread.join();
+                System.out.println("child joined");
+                return 0;
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Handle the exit(int status) system call.
+     */
+
+    private void handleExit(int status) {
+        System.out.println("Exit called on PID: " + processID);
+    }
     
     private static final int
         syscallHalt = 0,
@@ -529,6 +584,13 @@ public class UserProcess {
             return handleRead(a0, a1, a2);
         case syscallWrite:
             return handleWrite(a0, a1, a2);
+        case syscallExec:
+            return handleExec(a0, a1, a2);
+        case syscallJoin:
+            return handleJoin(a0, a1);
+        case syscallExit:
+            handleExit(a0);
+            break;
 
 
 	default:
@@ -568,6 +630,14 @@ public class UserProcess {
 	}
     }
 
+    public int getParentProcessID() {
+        return parentProcessID;
+    }
+
+    public void setParentProcessID(int parentProcessID) {
+        this.parentProcessID = parentProcessID;
+    }
+
     /** The program being run by this process. */
     protected Coff coff;
 
@@ -596,4 +666,8 @@ public class UserProcess {
     private static int processes = 0;
     /** lock to make id updates atomic */
     private static Lock lock = new Lock();
+    private static final int maxFileNameSize = 256;
+    private List<UserProcess> childProcesses;
+    private int parentProcessID;
+    private KThread processThread;
 }

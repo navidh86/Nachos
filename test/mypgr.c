@@ -18,8 +18,11 @@ void main()
     readline(b, 10);
     char *execArgs[256];
     int status1,processID, processID1, processID2, status2;
-    
+
     printf("\n\n********************************** mypgr Program Loading-test **********************************\n\n");
+    
+    printf("mypgr forking testArgs.coff and joining... \n");
+    
     printf("mypgr forking echo.coff and joining... \n");
     processID = exec("echo.coff", 1,  execArgs);
     int k = join(processID, &status1);
