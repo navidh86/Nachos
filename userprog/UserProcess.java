@@ -581,10 +581,7 @@ public class UserProcess {
             child.setParentProcessID(-1);
         }
         
-        exitStatus = status;
-        
         unloadSections();
-        UThread.finish();
         
         lock.acquire();
         activeProcessCount--;
@@ -592,6 +589,10 @@ public class UserProcess {
             Kernel.kernel.terminate();
         }
         lock.release();
+        
+        exitStatus = status;
+        UThread.finish();
+        
     }
     
     private static final int
@@ -685,7 +686,7 @@ public class UserProcess {
 	    Lib.debug(dbgProcess, "Unexpected exception: " +
 		      Processor.exceptionNames[cause]);
 	    Lib.assertNotReached("Unexpected exception");
-            handleExit(0);
+            handleExit(-1);
 	}
     }
 
