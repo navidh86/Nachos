@@ -39,9 +39,9 @@ public class Alarm {
             waitQueue.poll().target.ready();
         }
         
-        Machine.interrupt().restore(intStatus);
-        
 	KThread.currentThread().yield();
+        
+        Machine.interrupt().restore(intStatus);
     }
 
     /**

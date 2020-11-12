@@ -39,12 +39,14 @@ public class Condition2 {
         
         boolean intStatus = Machine.interrupt().disable();
         
-	conditionLock.release();        
+	conditionLock.release();
+        
         waitQueue.add(KThread.currentThread());
         KThread.sleep();
-
-        Machine.interrupt().restore(intStatus);
+        
 	conditionLock.acquire();
+        
+        Machine.interrupt().restore(intStatus);
     }
 
     /**
