@@ -9,9 +9,11 @@ void main(int argc, char **argv) {
 	
 	int i;
 	for (i = 0; i < argc; i++) {
-		char *s = argv[i];
-		printf("%d -> %s\n", i, s);
+		printf("%d -> %s\n", i, argv[i]);
 	}
+
+	halt();
+	printf("halt did not work from here\n");
 	printf("testArgs ended\n");
 	return;
 }
