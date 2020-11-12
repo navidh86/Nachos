@@ -11,9 +11,9 @@ int main(int argc, char** argv)
     char *testArgv[3] = {"Mohammad", "solaimanope", "Solaiman"};
     int processID = exec("testArgs.coff", 3, testArgv);
     int status;
-    //int k = join(processID, status);
-    //printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status);
-   
+    int k = join(processID, status);
+    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status);
+    printf("Return for join on pid %d : %d\n", processID, k);
 
     printf("\n------------CHECKING INVALID JOIN CALLS--------------\n");
     num = join(2, &num);

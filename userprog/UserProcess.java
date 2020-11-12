@@ -40,6 +40,7 @@ public class UserProcess {
 
         parentProcessID = -1;
         childProcesses = new LinkedList<>();
+        exitStatus = null;
     }
     
     /**
@@ -67,6 +68,10 @@ public class UserProcess {
 
 	processThread = new UThread(this).setName(name);
 	processThread.fork();
+        
+        lock.acquire();
+        activeProcessCount++;
+        lock.release();
 
 	return true;
     }
@@ -531,12 +536,14 @@ public class UserProcess {
         }
 
         UserProcess child = UserProcess.newUserProcess();
-        child.setParentProcessID(processID);
-        childProcesses.add(child);
-        //System.out.println("creating child " + child.processID + " of " + processID);
+        System.out.println("creating child " + child.processID + " of " + processID);
         
-        if (!child.execute(fileName, argv))
+        if (!child.execute(fileName, argv)) {
             return -1;
+        } else {
+            child.setParentProcessID(processID);
+            childProcesses.add(child); 
+        }
         
         return child.processID;
     }
@@ -551,7 +558,14 @@ public class UserProcess {
                 System.out.println("Starting join");
                 child.processThread.join();
                 System.out.println("child joined");
-                return 0;
+                childProcesses.remove(child);
+                byte[] exitStatusBytes = Lib.bytesFromInt(child.exitStatus);
+                writeVirtualMemory(statusVAddress, exitStatusBytes);
+                if (child.exitStatus == 0) {
+                    return 1;
+                } else {
+                    return 0;
+                }
             }
         }
 
@@ -563,11 +577,20 @@ public class UserProcess {
      */
     private void handleExit(int status) {
         System.out.println("Exit called on PID: " + processID);
+        for (UserProcess child : childProcesses) {
+            child.setParentProcessID(-1);
+        }
+        
+        exitStatus = status;
+        
         unloadSections();
         UThread.finish();
         
         lock.acquire();
-        processes++;
+        activeProcessCount--;
+        if (activeProcessCount == 0) {
+            Kernel.kernel.terminate();
+        }
         lock.release();
     }
     
@@ -662,6 +685,7 @@ public class UserProcess {
 	    Lib.debug(dbgProcess, "Unexpected exception: " +
 		      Processor.exceptionNames[cause]);
 	    Lib.assertNotReached("Unexpected exception");
+            handleExit(0);
 	}
     }
 
@@ -705,5 +729,7 @@ public class UserProcess {
     private List<UserProcess> childProcesses;
     private int parentProcessID;
     private KThread processThread;
+    private static int activeProcessCount = 0;
     private static Lock ioLock = new Lock();
+    private Integer exitStatus;
 }
