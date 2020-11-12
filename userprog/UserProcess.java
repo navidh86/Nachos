@@ -26,9 +26,7 @@ public class UserProcess {
      */
     public UserProcess() {
 	int numPhysPages = Machine.processor().getNumPhysPages();
-	//pageTable = new TranslationEntry[numPhysPages];
-	//for (int i=0; i<numPhysPages; i++)
-	//    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+	pageTable = new TranslationEntry[numPhysPages];
         
         //set the process ID
         lock.acquire();
@@ -166,9 +164,10 @@ public class UserProcess {
                 break;
             
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
+            
             data[i+offset] = memory[paddr];
             amount++;
-            entry.used = true;
+            entry.used = true;                 
         }
 
 	return amount;
@@ -223,7 +222,8 @@ public class UserProcess {
             if (entry == null || !entry.valid || entry.readOnly)
                 break;
             
-            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr));
+            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
+            
             memory[paddr] = data[i+offset];
             amount++;
             entry.used = entry.dirty = true;
@@ -335,7 +335,6 @@ public class UserProcess {
 	}
         
         //init the page table
-        pageTable = new TranslationEntry[numPages];
         int pagesEntered = 0;
 
 	// load sections
@@ -395,10 +394,15 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+        // free the physical pages
         for (int i=0; i<numPages; i++) {
             pageTable[i].valid = false;
             UserKernel.freePage(pageTable[i].ppn);
         }
+        
+        // close the stdout and stdin file descriptors
+        fileDescriptors[stdin].close();
+        fileDescriptors[stdout].close();
     }    
 
     /**
@@ -490,23 +494,40 @@ public class UserProcess {
     /**
      * Handle the exec(char *name, int argc, char **argv); system call.
      */
-
     private int handleExec(int nameVAddress, int argc, int argvVAddress) {
-        Lib.assertTrue(argc >= 0);
+        if (argc < 0 || nameVAddress < 0 || argvVAddress < 0)
+            return -1;
+         
         String fileName = readVirtualMemoryString(nameVAddress, maxFileNameSize);
+        if (!fileName.contains(".coff"))
+            return -1;
+        
         String[] argv = new String[argc];
 
-        int stringOffset = argvVAddress + argc * 4;
+        byte[] stringOffsetBytes = new byte[4];
+        int stringOffset;
+        
         for (int i = 0; i < argc; i++) {
+            int len = readVirtualMemory(argvVAddress + i*4, stringOffsetBytes);
+            if (len != 4)
+                return -1;
+            
+            stringOffset = Lib.bytesToInt(stringOffsetBytes, 0);
+            
             argv[i] = readVirtualMemoryString(stringOffset, Processor.pageSize);
-            stringOffset += argv[i].length() + 1;
+            
+            if (argv[i] == null)
+                return -1;
         }
 
         UserProcess child = UserProcess.newUserProcess();
         child.setParentProcessID(processID);
         childProcesses.add(child);
-        System.out.println("creating child " + child.processID + " of " + processID);
-        child.execute(fileName, argv);
+        //System.out.println("creating child " + child.processID + " of " + processID);
+        
+        if (!child.execute(fileName, argv))
+            return -1;
+        
         return child.processID;
     }
 
@@ -514,7 +535,6 @@ public class UserProcess {
     /**
      * Handle the join(int pid, int *status) system call.
      */
-
     private int handleJoin(int pid, int statusVAddress) {
         for (UserProcess child : childProcesses) {
             if (pid == child.processID) {
@@ -531,9 +551,10 @@ public class UserProcess {
     /**
      * Handle the exit(int status) system call.
      */
-
     private void handleExit(int status) {
         System.out.println("Exit called on PID: " + processID);
+        unloadSections();
+        UThread.finish();
     }
     
     private static final int
