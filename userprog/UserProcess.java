@@ -445,50 +445,60 @@ public class UserProcess {
      * Handle the read(int fd, char *buffer, int size) system call. 
      */
     private int handleRead(int fileDescriptor, int vaddr, int size) {
-        if (fileDescriptor != stdin || vaddr < 0 || size < 0)
-            return -1;
-        
-        byte[] buffer = new byte[size];
-        
-        //number of bytes copied from console
-        int readSize = fileDescriptors[fileDescriptor].read(buffer, 0, size);
-        
-        if (readSize > 0) {
-            //number of bytes written on virual memory
-            int writeSize = writeVirtualMemory(vaddr, buffer, 0, readSize);
-            
-            if (readSize != writeSize)
+        ioLock.acquire();
+        try {
+            if (fileDescriptor != stdin || vaddr < 0 || size < 0)
                 return -1;
-            else return writeSize;
+
+            byte[] buffer = new byte[size];
+
+            //number of bytes copied from console
+            int readSize = fileDescriptors[fileDescriptor].read(buffer, 0, size);
+
+            if (readSize > 0) {
+                //number of bytes written on virual memory
+                int writeSize = writeVirtualMemory(vaddr, buffer, 0, readSize);
+
+                if (readSize != writeSize)
+                    return -1;
+                else return writeSize;
+            }
+
+            return 0;
+        } finally {
+            ioLock.release();
         }
-        
-        return 0;
     }
     
     /**
      * Handle the write(int fd, char *buffer, int size) system call. 
      */
     private int handleWrite(int fileDescriptor, int vaddr, int size) {
-        if (fileDescriptor != stdout || vaddr < 0 || size < 0)
-            return -1;
-        
-        byte[] buffer = new byte[size];
-        
-        //number of bytes copied from virtual memory
-        int readSize = readVirtualMemory(vaddr, buffer, 0, size);
-        
-        if (readSize != size)
-            return -1;
-        else if (readSize > 0) {
-            //number of bytes written on console
-            int writeSize = fileDescriptors[fileDescriptor].write(buffer, 0, readSize);
-            
-            if (readSize != writeSize)
+        ioLock.acquire();
+        try {
+            if (fileDescriptor != stdout || vaddr < 0 || size < 0)
                 return -1;
-            else return writeSize;
+
+            byte[] buffer = new byte[size];
+
+            //number of bytes copied from virtual memory
+            int readSize = readVirtualMemory(vaddr, buffer, 0, size);
+
+            if (readSize != size)
+                return -1;
+            else if (readSize > 0) {
+                //number of bytes written on console
+                int writeSize = fileDescriptors[fileDescriptor].write(buffer, 0, readSize);
+
+                if (readSize != writeSize)
+                    return -1;
+                else return writeSize;
+            }
+
+            return 0;
+        } finally {
+            ioLock.release();
         }
-        
-        return 0;
     }
 
     /**
@@ -499,7 +509,7 @@ public class UserProcess {
             return -1;
          
         String fileName = readVirtualMemoryString(nameVAddress, maxFileNameSize);
-        if (!fileName.contains(".coff"))
+        if (!fileName.endsWith(".coff"))
             return -1;
         
         String[] argv = new String[argc];
@@ -555,6 +565,10 @@ public class UserProcess {
         System.out.println("Exit called on PID: " + processID);
         unloadSections();
         UThread.finish();
+        
+        lock.acquire();
+        processes++;
+        lock.release();
     }
     
     private static final int
@@ -691,4 +705,5 @@ public class UserProcess {
     private List<UserProcess> childProcesses;
     private int parentProcessID;
     private KThread processThread;
+    private static Lock ioLock = new Lock();
 }
