@@ -41,6 +41,7 @@ public class UserProcess {
         parentProcessID = -1;
         childProcesses = new LinkedList<>();
         exitStatus = null;
+        didExitNormally = null;
     }
     
     /**
@@ -553,10 +554,10 @@ public class UserProcess {
                 byte[] exitStatusBytes = Lib.bytesFromInt(child.exitStatus);
                 writeVirtualMemory(statusVAddress, exitStatusBytes);
                 
-                if (child.exitStatus == -1) {
-                    return 0;
-                } else {
+                if (child.didExitNormally) {
                     return 1;
+                } else {
+                    return 0;
                 }
             }
         }
@@ -638,12 +639,14 @@ public class UserProcess {
         case syscallJoin:
             return handleJoin(a0, a1);
         case syscallExit:
+            didExitNormally = true;
             handleExit(a0);
             break;
 
 
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
+            didExitNormally = false;
             handleExit(-1);
 	    Lib.assertNotReached("Unknown system call!");
 	}
@@ -676,6 +679,7 @@ public class UserProcess {
 	default:
             Lib.debug(dbgProcess, "Unexpected exception: " +
 		      Processor.exceptionNames[cause]);
+            didExitNormally = false;
             handleExit(-1);
 	    Lib.assertNotReached("Unexpected exception");
 	}
@@ -723,4 +727,5 @@ public class UserProcess {
     private static int activeProcessCount = 0;
     private static Lock ioLock = new Lock();
     private Integer exitStatus;
+    private Boolean didExitNormally;
 }
