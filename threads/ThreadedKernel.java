@@ -1,8 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
-import nachos.proj1.AlarmTest;
-import nachos.proj1.CommunicatorTest;
+import nachos.proj1.Test;
 
 /**
  * A multi-threaded OS kernel.
@@ -48,15 +47,14 @@ public class ThreadedKernel extends Kernel {
      * tests here.
      */	
     public void selfTest() {
-	KThread.selfTest();
+	//KThread.selfTest();
 	Semaphore.selfTest();
 	SynchList.selfTest();
 	if (Machine.bank() != null) {
 	    ElevatorBank.selfTest();
 	}
         
-        CommunicatorTest.startTest();
-        AlarmTest.startTest();
+        Test.startTest();
     }
     
     /**

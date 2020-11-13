@@ -183,7 +183,8 @@ public class KThread {
      */
     public static void finish() {
 	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
-	
+        
+        
 	Machine.interrupt().disable();
 
 	Machine.autoGrader().finishingCurrentThread();
