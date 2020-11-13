@@ -557,8 +557,11 @@ public class UserProcess {
                 child.processThread.join();
                 childProcesses.remove(child);
                 
-                byte[] exitStatusBytes = Lib.bytesFromInt(child.exitStatus);
-                writeVirtualMemory(statusVAddress, exitStatusBytes);
+                if (statusVAddress >= 0) {
+                    // write the exit status of child on this address
+                    byte[] exitStatusBytes = Lib.bytesFromInt(child.exitStatus);
+                    writeVirtualMemory(statusVAddress, exitStatusBytes);
+                }
                 
                 if (child.didExitNormally) {
                     return 1;
