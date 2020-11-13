@@ -350,6 +350,7 @@ public class UserProcess {
                 if (ppn == -1) {
                     coff.close();
                     Lib.debug(dbgProcess, "\tinsufficient free memory");
+                    unloadSections();
                     return false;
                 }
                 
@@ -368,6 +369,7 @@ public class UserProcess {
             if (ppn == -1) {
                 coff.close();
                 Lib.debug(dbgProcess, "\tinsufficient free memory");
+                unloadSections();
                 return false;
             }
             
@@ -381,6 +383,7 @@ public class UserProcess {
         if (ppn == -1) {
             coff.close();
             Lib.debug(dbgProcess, "\tinsufficient free memory");
+            unloadSections();
             return false;
         }
         
