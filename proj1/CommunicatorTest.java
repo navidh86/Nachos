@@ -10,7 +10,7 @@ import nachos.threads.KThread;
  */
 public class CommunicatorTest {
     public static void startTest() {
-        System.out.println("Start of Communicator test.....");
+        System.out.println("******** Start of Communicator test **********\n");
         
         Communicator c = new Communicator();
         KThread sp1 = new KThread(new Speaker(c, 1)).setName("Speaker 1");
@@ -31,6 +31,8 @@ public class CommunicatorTest {
         sp1.join();
         sp2.join();
         sp3.join();
+        
+        System.out.println("\n******** End of Communicator test **********\n");
     }
 }
 

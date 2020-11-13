@@ -10,7 +10,7 @@ import nachos.threads.ThreadedKernel;
  */
 public class AlarmTest {
     public static void startTest() {
-        System.out.println("Start of alram test . . .");
+        System.out.println("********* Start of alram test ********\n");
         
         KThread at1 = new KThread(new AlarmRunnable(3000)).setName("Alarm Thread 1");
         KThread at2 = new KThread(new AlarmRunnable(2000)).setName("Alarm Thread 2");
@@ -23,6 +23,8 @@ public class AlarmTest {
         at1.join();
         at2.join();
         at3.join();
+        
+        System.out.println("\n********* End of alram test ********\n");
     }
 }
 
@@ -32,7 +34,8 @@ class AlarmRunnable implements Runnable {
     }
     
     public void run() {
-        System.out.println(KThread.currentThread().getName() + ": Current time: " + Machine.timer().getTime());
+        System.out.println(KThread.currentThread().getName() + ": Current time: " + Machine.timer().getTime() + 
+                " need to wait for " + waitTime + " ticks");
         ThreadedKernel.alarm.waitUntil(waitTime);
         System.out.println(KThread.currentThread().getName() + ": Current time: " + Machine.timer().getTime());
     }
