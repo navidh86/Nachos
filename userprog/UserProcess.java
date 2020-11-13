@@ -398,6 +398,9 @@ public class UserProcess {
     protected void unloadSections() {
         // free the physical pages
         for (int i=0; i<numPages; i++) {
+            if (pageTable[i] == null)
+                break;
+            
             pageTable[i].valid = false;
             UserKernel.freePage(pageTable[i].ppn);
         }
