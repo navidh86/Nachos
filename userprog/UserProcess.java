@@ -35,8 +35,8 @@ public class UserProcess {
         
         //open the file descriptors
         fileDescriptors = new OpenFile[2];
-        fileDescriptors[0] = UserKernel.console.openForReading();
-        fileDescriptors[1] = UserKernel.console.openForWriting();
+        fileDescriptors[stdin] = UserKernel.console.openForReading();
+        fileDescriptors[stdout] = UserKernel.console.openForWriting();
 
         parentProcessID = -1;
         childProcesses = new LinkedList<>();
@@ -65,13 +65,13 @@ public class UserProcess {
     public boolean execute(String name, String[] args) {
 	if (!load(name, args))
 	    return false;
-
-	processThread = new UThread(this).setName(name);
-	processThread.fork();
         
         lock.acquire();
         activeProcessCount++;
         lock.release();
+
+	processThread = new UThread(this).setName(name);
+	processThread.fork();  
 
 	return true;
     }
@@ -155,9 +155,6 @@ public class UserProcess {
 	// for now, just assume that virtual addresses equal physical addresses
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
-
-	//int amount = Math.min(length, memory.length-vaddr);
-	//System.arraycopy(memory, vaddr, data, offset, amount);
         
         int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
         for (int i=0; i<maxAmount; i++) {
@@ -214,9 +211,6 @@ public class UserProcess {
 	// for now, just assume that virtual addresses equal physical addresses
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
-
-	//int amount = Math.min(length, memory.length-vaddr);
-	//System.arraycopy(data, offset, memory, vaddr, amount);
         
         int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
         for (int i=0; i<maxAmount; i++) {
@@ -339,7 +333,6 @@ public class UserProcess {
 	    return false;
 	}
         
-        //init the page table
         int pagesEntered = 0;
 
 	// load sections
@@ -458,7 +451,7 @@ public class UserProcess {
             byte[] buffer = new byte[size];
 
             //number of bytes copied from console
-            int readSize = fileDescriptors[fileDescriptor].read(buffer, 0, size);
+            int readSize = fileDescriptors[stdin].read(buffer, 0, size);
 
             if (readSize > 0) {
                 //number of bytes written on virual memory
@@ -493,7 +486,7 @@ public class UserProcess {
                 return -1;
             else if (readSize > 0) {
                 //number of bytes written on console
-                int writeSize = fileDescriptors[fileDescriptor].write(buffer, 0, readSize);
+                int writeSize = fileDescriptors[stdout].write(buffer, 0, readSize);
 
                 if (readSize != writeSize)
                     return -1;
@@ -536,7 +529,6 @@ public class UserProcess {
         }
 
         UserProcess child = UserProcess.newUserProcess();
-        System.out.println("creating child " + child.processID + " of " + processID);
         
         if (!child.execute(fileName, argv)) {
             return -1;
@@ -555,16 +547,16 @@ public class UserProcess {
     private int handleJoin(int pid, int statusVAddress) {
         for (UserProcess child : childProcesses) {
             if (pid == child.processID) {
-                System.out.println("Starting join");
                 child.processThread.join();
-                System.out.println("child joined");
                 childProcesses.remove(child);
+                
                 byte[] exitStatusBytes = Lib.bytesFromInt(child.exitStatus);
                 writeVirtualMemory(statusVAddress, exitStatusBytes);
-                if (child.exitStatus == 0) {
-                    return 1;
-                } else {
+                
+                if (child.exitStatus == -1) {
                     return 0;
+                } else {
+                    return 1;
                 }
             }
         }
@@ -576,7 +568,6 @@ public class UserProcess {
      * Handle the exit(int status) system call.
      */
     private void handleExit(int status) {
-        System.out.println("Exit called on PID: " + processID);
         for (UserProcess child : childProcesses) {
             child.setParentProcessID(-1);
         }
@@ -591,8 +582,7 @@ public class UserProcess {
         lock.release();
         
         exitStatus = status;
-        UThread.finish();
-        
+        UThread.finish();      
     }
     
     private static final int
@@ -683,10 +673,11 @@ public class UserProcess {
 	    break;				       
 				       
 	default:
-	    Lib.debug(dbgProcess, "Unexpected exception: " +
+            Lib.debug(dbgProcess, "Unexpected exception: " +
 		      Processor.exceptionNames[cause]);
-	    Lib.assertNotReached("Unexpected exception");
             handleExit(-1);
+            break;
+	    //Lib.assertNotReached("Unexpected exception");
 	}
     }
 
@@ -714,8 +705,7 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
-    
-    /***** for proj 2 *****/
+
     /** The page descriptors of this process. */
     private OpenFile[] fileDescriptors;
     private static final int stdin = 0, stdout = 1;
