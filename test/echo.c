@@ -46,5 +46,5 @@ int main(int argc, char** argv)
     printf("Return on invallid size: %d\n", num);
     printf("------------END CHECKING INVALID WRITE CALLS--------------\n");
    
-    return 0;
+    return 66;
 }
