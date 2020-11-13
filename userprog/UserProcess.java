@@ -5,6 +5,8 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -24,9 +26,7 @@ public class UserProcess {
      */
     public UserProcess() {
 	int numPhysPages = Machine.processor().getNumPhysPages();
-	//pageTable = new TranslationEntry[numPhysPages];
-	//for (int i=0; i<numPhysPages; i++)
-	//    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+	pageTable = new TranslationEntry[numPhysPages];
         
         //set the process ID
         lock.acquire();
@@ -35,8 +35,13 @@ public class UserProcess {
         
         //open the file descriptors
         fileDescriptors = new OpenFile[2];
-        fileDescriptors[0] = UserKernel.console.openForReading();
-        fileDescriptors[1] = UserKernel.console.openForWriting();
+        fileDescriptors[stdin] = UserKernel.console.openForReading();
+        fileDescriptors[stdout] = UserKernel.console.openForWriting();
+
+        parentProcessID = -1;
+        childProcesses = new LinkedList<>();
+        exitStatus = null;
+        didExitNormally = null;
     }
     
     /**
@@ -61,8 +66,13 @@ public class UserProcess {
     public boolean execute(String name, String[] args) {
 	if (!load(name, args))
 	    return false;
-	
-	new UThread(this).setName(name).fork();
+        
+        lock.acquire();
+        activeProcessCount++;
+        lock.release();
+
+	processThread = new UThread(this).setName(name);
+	processThread.fork();  
 
 	return true;
     }
@@ -146,9 +156,6 @@ public class UserProcess {
 	// for now, just assume that virtual addresses equal physical addresses
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
-
-	//int amount = Math.min(length, memory.length-vaddr);
-	//System.arraycopy(memory, vaddr, data, offset, amount);
         
         int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
         for (int i=0; i<maxAmount; i++) {
@@ -160,9 +167,10 @@ public class UserProcess {
                 break;
             
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
+            
             data[i+offset] = memory[paddr];
             amount++;
-            entry.used = true;
+            entry.used = true;                 
         }
 
 	return amount;
@@ -204,9 +212,6 @@ public class UserProcess {
 	// for now, just assume that virtual addresses equal physical addresses
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
-
-	//int amount = Math.min(length, memory.length-vaddr);
-	//System.arraycopy(data, offset, memory, vaddr, amount);
         
         int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
         for (int i=0; i<maxAmount; i++) {
@@ -217,7 +222,8 @@ public class UserProcess {
             if (entry == null || !entry.valid || entry.readOnly)
                 break;
             
-            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr));
+            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
+            
             memory[paddr] = data[i+offset];
             amount++;
             entry.used = entry.dirty = true;
@@ -328,8 +334,6 @@ public class UserProcess {
 	    return false;
 	}
         
-        //init the page table
-        pageTable = new TranslationEntry[numPages];
         int pagesEntered = 0;
 
 	// load sections
@@ -389,10 +393,15 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+        // free the physical pages
         for (int i=0; i<numPages; i++) {
             pageTable[i].valid = false;
             UserKernel.freePage(pageTable[i].ppn);
         }
+        
+        // close the stdout and stdin file descriptors
+        fileDescriptors[stdin].close();
+        fileDescriptors[stdout].close();
     }    
 
     /**
@@ -435,50 +444,146 @@ public class UserProcess {
      * Handle the read(int fd, char *buffer, int size) system call. 
      */
     private int handleRead(int fileDescriptor, int vaddr, int size) {
-        if (fileDescriptor != stdin || vaddr < 0 || size < 0)
-            return -1;
-        
-        byte[] buffer = new byte[size];
-        
-        //number of bytes copied from console
-        int readSize = fileDescriptors[fileDescriptor].read(buffer, 0, size);
-        
-        if (readSize > 0) {
-            //number of bytes written on virual memory
-            int writeSize = writeVirtualMemory(vaddr, buffer, 0, readSize);
-            
-            if (readSize != writeSize)
+        ioLock.acquire();
+        try {
+            if (fileDescriptor != stdin || vaddr < 0 || size < 0)
                 return -1;
-            else return writeSize;
+
+            byte[] buffer = new byte[size];
+
+            //number of bytes copied from console
+            int readSize = fileDescriptors[stdin].read(buffer, 0, size);
+
+            if (readSize > 0) {
+                //number of bytes written on virual memory
+                int writeSize = writeVirtualMemory(vaddr, buffer, 0, readSize);
+
+                if (readSize != writeSize)
+                    return -1;
+                else return writeSize;
+            }
+
+            return 0;
+        } finally {
+            ioLock.release();
         }
-        
-        return 0;
     }
     
     /**
      * Handle the write(int fd, char *buffer, int size) system call. 
      */
     private int handleWrite(int fileDescriptor, int vaddr, int size) {
-        if (fileDescriptor != stdout || vaddr < 0 || size < 0)
-            return -1;
-        
-        byte[] buffer = new byte[size];
-        
-        //number of bytes copied from virtual memory
-        int readSize = readVirtualMemory(vaddr, buffer, 0, size);
-        
-        if (readSize != size)
-            return -1;
-        else if (readSize > 0) {
-            //number of bytes written on console
-            int writeSize = fileDescriptors[fileDescriptor].write(buffer, 0, readSize);
-            
-            if (readSize != writeSize)
+        ioLock.acquire();
+        try {
+            if (fileDescriptor != stdout || vaddr < 0 || size < 0)
                 return -1;
-            else return writeSize;
+
+            byte[] buffer = new byte[size];
+
+            //number of bytes copied from virtual memory
+            int readSize = readVirtualMemory(vaddr, buffer, 0, size);
+
+            if (readSize != size)
+                return -1;
+            else if (readSize > 0) {
+                //number of bytes written on console
+                int writeSize = fileDescriptors[stdout].write(buffer, 0, readSize);
+
+                if (readSize != writeSize)
+                    return -1;
+                else return writeSize;
+            }
+
+            return 0;
+        } finally {
+            ioLock.release();
+        }
+    }
+
+    /**
+     * Handle the exec(char *name, int argc, char **argv); system call.
+     */
+    private int handleExec(int nameVAddress, int argc, int argvVAddress) {
+        if (argc < 0 || nameVAddress < 0 || argvVAddress < 0)
+            return -1;
+         
+        String fileName = readVirtualMemoryString(nameVAddress, maxFileNameSize);
+        if (!fileName.endsWith(".coff"))
+            return -1;
+        
+        String[] argv = new String[argc];
+
+        byte[] stringOffsetBytes = new byte[4];
+        int stringOffset;
+        
+        for (int i = 0; i < argc; i++) {
+            int len = readVirtualMemory(argvVAddress + i*4, stringOffsetBytes);
+            if (len != 4)
+                return -1;
+            
+            stringOffset = Lib.bytesToInt(stringOffsetBytes, 0);
+            
+            argv[i] = readVirtualMemoryString(stringOffset, Processor.pageSize);
+            
+            if (argv[i] == null)
+                return -1;
+        }
+
+        UserProcess child = UserProcess.newUserProcess();
+        
+        if (!child.execute(fileName, argv)) {
+            return -1;
+        } else {
+            child.setParentProcessID(processID);
+            childProcesses.add(child); 
         }
         
-        return 0;
+        return child.processID;
+    }
+
+
+    /**
+     * Handle the join(int pid, int *status) system call.
+     */
+    private int handleJoin(int pid, int statusVAddress) {
+        for (UserProcess child : childProcesses) {
+            if (pid == child.processID) {
+                child.processThread.join();
+                childProcesses.remove(child);
+                
+                byte[] exitStatusBytes = Lib.bytesFromInt(child.exitStatus);
+                writeVirtualMemory(statusVAddress, exitStatusBytes);
+                
+                if (child.didExitNormally) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Handle the exit(int status) system call.
+     */
+    private void handleExit(int status) {
+        for (UserProcess child : childProcesses) {
+            child.setParentProcessID(-1);
+        }
+        
+        unloadSections();
+        
+        lock.acquire();
+        activeProcessCount--;
+        if (activeProcessCount == 0) {
+            Kernel.kernel.terminate();
+        }
+        lock.release();
+        
+        exitStatus = status;
+        UThread.finish();      
     }
     
     private static final int
@@ -529,10 +634,20 @@ public class UserProcess {
             return handleRead(a0, a1, a2);
         case syscallWrite:
             return handleWrite(a0, a1, a2);
+        case syscallExec:
+            return handleExec(a0, a1, a2);
+        case syscallJoin:
+            return handleJoin(a0, a1);
+        case syscallExit:
+            didExitNormally = true;
+            handleExit(a0);
+            break;
 
 
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
+            didExitNormally = false;
+            handleExit(-1);
 	    Lib.assertNotReached("Unknown system call!");
 	}
 	return 0;
@@ -562,10 +677,20 @@ public class UserProcess {
 	    break;				       
 				       
 	default:
-	    Lib.debug(dbgProcess, "Unexpected exception: " +
+            Lib.debug(dbgProcess, "Unexpected exception: " +
 		      Processor.exceptionNames[cause]);
+            didExitNormally = false;
+            handleExit(-1);
 	    Lib.assertNotReached("Unexpected exception");
 	}
+    }
+
+    public int getParentProcessID() {
+        return parentProcessID;
+    }
+
+    public void setParentProcessID(int parentProcessID) {
+        this.parentProcessID = parentProcessID;
     }
 
     /** The program being run by this process. */
@@ -584,8 +709,7 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
-    
-    /***** for proj 2 *****/
+
     /** The page descriptors of this process. */
     private OpenFile[] fileDescriptors;
     private static final int stdin = 0, stdout = 1;
@@ -596,4 +720,12 @@ public class UserProcess {
     private static int processes = 0;
     /** lock to make id updates atomic */
     private static Lock lock = new Lock();
+    private static final int maxFileNameSize = 256;
+    private List<UserProcess> childProcesses;
+    private int parentProcessID;
+    private KThread processThread;
+    private static int activeProcessCount = 0;
+    private static Lock ioLock = new Lock();
+    private Integer exitStatus;
+    private Boolean didExitNormally;
 }
