@@ -13,7 +13,7 @@ void main(int argc, char **argv) {
 	}
 
 	halt();
-	printf("halt did not work from here\n");
+	printf("halt did not work from test args\n");
 	printf("testArgs ended\n");
 	return;
 }
