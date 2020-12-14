@@ -158,18 +158,20 @@ public class UserProcess {
 	    return 0;
         
         int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
-        for (int i=0; i<maxAmount; i++) {
-            int vpn = Processor.pageFromAddress(vaddr+i);
+        while (amount < maxAmount) {
+            int vpn = Processor.pageFromAddress(vaddr+amount);
             
             TranslationEntry entry = pageTable[vpn];
             
             if (entry == null || !entry.valid)
                 break;
             
-            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
+            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+amount));
+            int temp = Math.min(pageSize, maxAmount-amount);
             
-            data[i+offset] = memory[paddr];
-            amount++;
+            System.arraycopy(memory, paddr, data, offset+amount, temp);
+
+            amount += temp;
             entry.used = true;                 
         }
 
@@ -214,18 +216,20 @@ public class UserProcess {
 	    return 0;
         
         int maxAmount = Math.min(length, memory.length-vaddr), amount = 0;
-        for (int i=0; i<maxAmount; i++) {
-            int vpn = Processor.pageFromAddress(vaddr+i);
+        while (amount < maxAmount) {
+            int vpn = Processor.pageFromAddress(vaddr+amount);
             
             TranslationEntry entry = pageTable[vpn];
             
             if (entry == null || !entry.valid || entry.readOnly)
                 break;
             
-            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+i));
+            int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+amount));
+            int temp = Math.min(pageSize, maxAmount-amount);
             
-            memory[paddr] = data[i+offset];
-            amount++;
+            System.arraycopy(data, offset+amount, memory, paddr, temp);
+            
+            amount += temp;
             entry.used = entry.dirty = true;
         }
 
