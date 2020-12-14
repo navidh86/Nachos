@@ -167,7 +167,7 @@ public class UserProcess {
                 break;
             
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+amount));
-            int temp = Math.min(pageSize, maxAmount-amount);
+            int temp = Math.min(pageSize - (vaddr+amount)%pageSize, maxAmount-amount);
             
             System.arraycopy(memory, paddr, data, offset+amount, temp);
 
@@ -225,7 +225,7 @@ public class UserProcess {
                 break;
             
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+amount));
-            int temp = Math.min(pageSize, maxAmount-amount);
+            int temp = Math.min(pageSize - (vaddr+amount)%pageSize, maxAmount-amount);
             
             System.arraycopy(data, offset+amount, memory, paddr, temp);
             
