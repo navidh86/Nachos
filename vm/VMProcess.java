@@ -21,6 +21,7 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
+        
 	super.saveState();
     }
 
@@ -61,6 +62,9 @@ public class VMProcess extends UserProcess {
 	Processor processor = Machine.processor();
 
 	switch (cause) {
+            case exceptionPageFault:
+                
+            
 	default:
 	    super.handleException(cause);
 	    break;

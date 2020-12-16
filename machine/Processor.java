@@ -217,7 +217,7 @@ public final class Processor {
 
 	translations[number] = new TranslationEntry(entry);
     }
-
+    
     /**
      * Return the number of pages of physical memory attached to this simulated
      * processor.

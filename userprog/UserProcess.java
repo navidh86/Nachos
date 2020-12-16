@@ -7,6 +7,7 @@ import nachos.userprog.*;
 import java.io.EOFException;
 import java.util.LinkedList;
 import java.util.List;
+import nachos.vm.MemoryManagementUnit;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -161,7 +162,12 @@ public class UserProcess {
         while (amount < maxAmount) {
             int vpn = Processor.pageFromAddress(vaddr+amount);
             
-            TranslationEntry entry = pageTable[vpn];
+            TranslationEntry entry = null;
+            if (Machine.processor().hasTLB()) {
+                MemoryManagementUnit.getPage(processID, vpn);
+            } else {
+                entry = pageTable[vpn];
+            }
             
             if (entry == null || !entry.valid)
                 break;
@@ -219,7 +225,12 @@ public class UserProcess {
         while (amount < maxAmount) {
             int vpn = Processor.pageFromAddress(vaddr+amount);
             
-            TranslationEntry entry = pageTable[vpn];
+            TranslationEntry entry = null;
+            if (Machine.processor().hasTLB()) {
+                MemoryManagementUnit.getPage(processID, vpn);
+            } else {
+                entry = pageTable[vpn];
+            }
             
             if (entry == null || !entry.valid || entry.readOnly)
                 break;
@@ -704,6 +715,9 @@ public class UserProcess {
 
     public void setParentProcessID(int parentProcessID) {
         this.parentProcessID = parentProcessID;
+    }
+    public int getProcessID() {
+        return processID;
     }
 
     /** The program being run by this process. */

@@ -48,4 +48,5 @@ public class VMKernel extends UserKernel {
     private static VMProcess dummy1 = null;
 
     private static final char dbgVM = 'v';
+    private static InvertedPageTable table = new InvertedPageTable();
 }
