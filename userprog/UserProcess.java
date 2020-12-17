@@ -7,6 +7,7 @@ import nachos.userprog.*;
 import java.io.EOFException;
 import java.util.LinkedList;
 import java.util.List;
+import nachos.vm.VMKernel;
 import nachos.vm.MemoryManagementUnit;
 
 /**
@@ -287,6 +288,9 @@ public class UserProcess {
 	    numPages += section.getLength();
 	}
 
+        // store this coff in the disk
+        VMKernel.disk.addCoff(this.processID, coff, numPages);
+        
 	// make sure the argv array will fit in one page
 	byte[][] argv = new byte[args.length][];
 	int argsSize = 0;
@@ -373,7 +377,7 @@ public class UserProcess {
                 pageTable[pagesEntered++] = new TranslationEntry(vpn, ppn, true, section.isReadOnly(), false, false);
                 
 		//load the page
-		section.loadPage(i, ppn);
+		section.loadPage(i, ppn); 
 	    }
 	}
         

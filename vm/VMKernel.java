@@ -1,5 +1,6 @@
 package nachos.vm;
 
+import java.util.Hashtable;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
@@ -21,12 +22,14 @@ public class VMKernel extends UserKernel {
      */
     public void initialize(String[] args) {
 	super.initialize(args);
+        VMKernel.disk = new Disk();
+        VMKernel.swapArea = new SwapArea();
     }
 
     /**
      * Test this kernel.
      */	
-    public void selfTest() {
+    public void selfTest() {   
 	super.selfTest();
     }
 
@@ -43,6 +46,9 @@ public class VMKernel extends UserKernel {
     public void terminate() {
 	super.terminate();
     }
+    
+    public static Disk disk;
+    public static SwapArea swapArea;
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;
