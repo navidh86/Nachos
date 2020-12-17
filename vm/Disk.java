@@ -12,14 +12,27 @@ public class Disk {
     public void loadPage(int pid, int vpn, int ppn) {
         Coff coff = coffMap.get(pid).coff;
         
-        int count = 0;
         for (int i=0; i<coff.getNumSections(); i++) {
-            if (coff.getSection(i).getLength() + count > vpn) {
-                coff.getSection(i).loadPage(vpn-count, ppn);
+            if (coff.getSection(i).getFirstVPN() + coff.getSection(i).getLength() > vpn) {
+                coff.getSection(i).loadPage(vpn-coff.getSection(i).getFirstVPN(), ppn);
                 break;
             }
-            else count += coff.getSection(i).getLength();
         }
+    }
+    
+    public boolean isReadOnly(int pid, int vpn) {
+        if (vpn >= coffMap.get(pid).coffLength)
+            return false;
+        
+        Coff coff = coffMap.get(pid).coff;
+        
+        for (int i=0; i<coff.getNumSections(); i++) {
+            if (coff.getSection(i).getFirstVPN() + coff.getSection(i).getLength() > vpn) {
+                return coff.getSection(i).isReadOnly();
+            }
+        }
+        
+        return false;
     }
     
     public int getCoffLength(int pid) {
@@ -29,7 +42,6 @@ public class Disk {
     public void addCoff(int pid, Coff coff, int coffLength) {
         coffMap.put(pid, new CoffEntry(coff, coffLength));
     }
-    
     
     private class CoffEntry {
         CoffEntry(Coff coff, int coffLength) {

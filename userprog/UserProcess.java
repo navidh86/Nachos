@@ -165,7 +165,7 @@ public class UserProcess {
             
             TranslationEntry entry = null;
             if (Machine.processor().hasTLB()) {
-                MemoryManagementUnit.getPage(processID, vpn);
+                entry = VMKernel.mmu.getPage(processID, vpn);
             } else {
                 entry = pageTable[vpn];
             }
@@ -173,13 +173,19 @@ public class UserProcess {
             if (entry == null || !entry.valid)
                 break;
             
+            if (Machine.processor().hasTLB())
+                VMKernel.loader.setUsageStatus(entry.ppn, true);
+            
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+amount));
             int temp = Math.min(pageSize - (vaddr+amount)%pageSize, maxAmount-amount);
             
             System.arraycopy(memory, paddr, data, offset+amount, temp);
 
             amount += temp;
-            entry.used = true;                 
+            entry.used = true;   
+            
+            if (Machine.processor().hasTLB())
+                VMKernel.loader.setUsageStatus(entry.ppn, false);
         }
 
 	return amount;
@@ -228,13 +234,16 @@ public class UserProcess {
             
             TranslationEntry entry = null;
             if (Machine.processor().hasTLB()) {
-                MemoryManagementUnit.getPage(processID, vpn);
+                entry = VMKernel.mmu.getPage(processID, vpn);
             } else {
                 entry = pageTable[vpn];
             }
             
             if (entry == null || !entry.valid || entry.readOnly)
                 break;
+            
+            if (Machine.processor().hasTLB())
+                VMKernel.loader.setUsageStatus(entry.ppn, true);
             
             int paddr = Processor.makeAddress(entry.ppn, Processor.offsetFromAddress(vaddr+amount));
             int temp = Math.min(pageSize - (vaddr+amount)%pageSize, maxAmount-amount);
@@ -243,6 +252,9 @@ public class UserProcess {
             
             amount += temp;
             entry.used = entry.dirty = true;
+            
+            if (Machine.processor().hasTLB())
+                VMKernel.loader.setUsageStatus(entry.ppn, false);
         }
 
 	return amount;
@@ -289,7 +301,9 @@ public class UserProcess {
 	}
 
         // store this coff in the disk
-        VMKernel.disk.addCoff(this.processID, coff, numPages);
+        if (Machine.processor().hasTLB()) {
+            VMKernel.disk.addCoff(this.processID, coff, numPages);
+        }
         
 	// make sure the argv array will fit in one page
 	byte[][] argv = new byte[args.length][];
@@ -415,15 +429,17 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-        // free the physical pages
-        for (int i=0; i<numPages; i++) {
-            if (pageTable[i] == null)
-                break;
-            
-            pageTable[i].valid = false;
-            UserKernel.freePage(pageTable[i].ppn);
+        if (!Machine.processor().hasTLB()) {
+             // free the physical pages
+            for (int i=0; i<numPages; i++) {
+                if (pageTable[i] == null)
+                    break;
+
+                pageTable[i].valid = false;
+                UserKernel.freePage(pageTable[i].ppn);
+            }
         }
-        
+       
         // close the stdout and stdin file descriptors
         fileDescriptors[stdin].close();
         fileDescriptors[stdout].close();
@@ -705,6 +721,7 @@ public class UserProcess {
 	    break;				       
 				       
 	default:
+            System.out.println("cause: " + cause);
             Lib.debug(dbgProcess, "Unexpected exception: " +
 		      Processor.exceptionNames[cause]);
             didExitNormally = false;

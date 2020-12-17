@@ -15,6 +15,7 @@ public class VMProcess extends UserProcess {
      */
     public VMProcess() {
 	super();
+        lock = new Lock();
     }
 
     /**
@@ -22,8 +23,9 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
-        
+        VMKernel.mmu.saveStateForContextSwitch(super.getProcessID());
 	super.saveState();
+        // System.out.println("switched context");
     }
 
     /**
@@ -31,8 +33,8 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-        System.out.println("vm restorestate");
-	// super.restoreState();
+        //System.out.println("vm restorestate");
+	//super.restoreState();
     }
 
     /**
@@ -50,7 +52,17 @@ public class VMProcess extends UserProcess {
      */
     protected void unloadSections() {
 	super.unloadSections();
+        VMKernel.loader.removeAllPages(super.getProcessID());
     }    
+    
+    private void handleTLBMiss(int vaddr) {
+        int vpn = Processor.pageFromAddress(vaddr);
+        int pid = super.getProcessID();
+        //System.out.println("Need to load: " + pid + ", " + vpn);
+        //lock.acquire();
+        VMKernel.mmu.loadPageIntoTLB(pid, vpn);
+        //lock.release();
+    }
 
     /**
      * Handle a user exception. Called by
@@ -64,8 +76,10 @@ public class VMProcess extends UserProcess {
 	Processor processor = Machine.processor();
 
 	switch (cause) {
-        case Processor.exceptionTLBMiss:
-            System.out.println("new tlb miss in vaddress: " + processor.readRegister(Processor.regBadVAddr));           
+        case Processor.exceptionTLBMiss: 
+            handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
+            // uncomment break when everything else is done
+            break;
 	default:
 	    super.handleException(cause);
 	    break;
@@ -75,4 +89,6 @@ public class VMProcess extends UserProcess {
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
     private static final char dbgVM = 'v';
+    
+    private static Lock lock;
 }
