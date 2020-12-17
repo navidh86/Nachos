@@ -24,7 +24,7 @@ public class InvertedPageTable {
         try {
             lock.acquire();
             
-            pageTable.put(new Pair(pid, vpn), entry);
+            pageTable.put(new Pair(pid, vpn), new TranslationEntry(entry));
         } finally {
             lock.release();
         }

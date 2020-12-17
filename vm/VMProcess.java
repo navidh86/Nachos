@@ -22,6 +22,7 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
+        
 	super.saveState();
     }
 
@@ -64,7 +65,7 @@ public class VMProcess extends UserProcess {
 
 	switch (cause) {
         case Processor.exceptionTLBMiss:
-            System.out.println("new tlb miss in vaddress: " + processor.readRegister(Processor.regBadVAddr));
+            System.out.println("new tlb miss in vaddress: " + processor.readRegister(Processor.regBadVAddr));           
 	default:
 	    super.handleException(cause);
 	    break;
