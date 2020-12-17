@@ -28,6 +28,7 @@ public class SwapArea {
         return pos;
     }
     
+    // retrieve the pos'th page from the swap area
     public byte[] retrievePage(int pos) {
         byte[] page = new byte[Processor.pageSize];
         
@@ -39,11 +40,7 @@ public class SwapArea {
     public void unallocatePage(int pos) {
         freePositions.add(pos);
     }
-    
-    private void addFreePos(int pos) {
-        freePositions.add(pos);
-    }
-    
+
     private int getFreePos() {
         if (freePositions.isEmpty()) {
             count++;

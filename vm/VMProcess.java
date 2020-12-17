@@ -1,5 +1,6 @@
 package nachos.vm;
 
+import java.util.Scanner;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
@@ -29,7 +30,8 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-	super.restoreState();
+        System.out.println("vm restorestate");
+	// super.restoreState();
     }
 
     /**
@@ -39,7 +41,7 @@ public class VMProcess extends UserProcess {
      * @return	<tt>true</tt> if successful.
      */
     protected boolean loadSections() {
-	return super.loadSections();
+        return true;
     }
 
     /**
@@ -61,6 +63,8 @@ public class VMProcess extends UserProcess {
 	Processor processor = Machine.processor();
 
 	switch (cause) {
+        case Processor.exceptionTLBMiss:
+            System.out.println("new tlb miss in vaddress: " + processor.readRegister(Processor.regBadVAddr));
 	default:
 	    super.handleException(cause);
 	    break;
