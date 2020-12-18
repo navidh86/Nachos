@@ -17,6 +17,9 @@ public class MemoryManagementUnit {
         TranslationEntry entry = VMKernel.table.getEntry(pid, vpn);
         
         if (entry == null) {
+            // page fault
+            VMKernel.pageFaults++;
+            
             // load the page into main memory
             int ppn = VMKernel.loader.loadPageIntoMemory(pid, vpn);
             entry = new TranslationEntry(vpn, ppn, true, VMKernel.loader.isReadOnly(pid, vpn), false, false);

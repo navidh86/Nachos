@@ -48,6 +48,7 @@ public class VMKernel extends UserKernel {
      */
     public void terminate() {
         VMKernel.swapArea.close();
+        System.out.println("\n\n***** Page faults: " + VMKernel.pageFaults + " *****\n\n");
 	super.terminate();
     }
     
@@ -56,6 +57,7 @@ public class VMKernel extends UserKernel {
     public static InvertedPageTable table;
     public static Loader loader;
     public static MemoryManagementUnit mmu;
+    public static int pageFaults = 0;
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;
