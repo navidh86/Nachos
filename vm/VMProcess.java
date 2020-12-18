@@ -15,7 +15,6 @@ public class VMProcess extends UserProcess {
      */
     public VMProcess() {
 	super();
-        lock = new Lock();
     }
 
     /**
@@ -25,7 +24,6 @@ public class VMProcess extends UserProcess {
     public void saveState() {
         VMKernel.mmu.saveStateForContextSwitch(super.getProcessID());
 	super.saveState();
-        // System.out.println("switched context");
     }
 
     /**
@@ -58,10 +56,7 @@ public class VMProcess extends UserProcess {
     private void handleTLBMiss(int vaddr) {
         int vpn = Processor.pageFromAddress(vaddr);
         int pid = super.getProcessID();
-        //System.out.println("Need to load: " + pid + ", " + vpn);
-        //lock.acquire();
         VMKernel.mmu.loadPageIntoTLB(pid, vpn);
-        //lock.release();
     }
 
     /**
@@ -73,22 +68,23 @@ public class VMProcess extends UserProcess {
      * @param	cause	the user exception that occurred.
      */
     public void handleException(int cause) {
+        boolean intStatus = Machine.interrupt().disable();
+        
 	Processor processor = Machine.processor();
 
 	switch (cause) {
         case Processor.exceptionTLBMiss: 
             handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
-            // uncomment break when everything else is done
             break;
 	default:
 	    super.handleException(cause);
 	    break;
 	}
+        
+        Machine.interrupt().restore(intStatus);
     }
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
     private static final char dbgVM = 'v';
-    
-    private static Lock lock;
 }
