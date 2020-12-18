@@ -475,7 +475,8 @@ public class UserProcess {
         if (processID != 0)
             return -1;
         
-	Machine.halt();
+	// Machine.halt();
+        Kernel.kernel.terminate();
 	
 	Lib.assertNotReached("Machine.halt() did not halt machine!");
 	return 0;
