@@ -35,14 +35,12 @@ public class InvertedPageTable {
     }
     
     public void addEntry(int pid, int vpn, TranslationEntry entry) {
-        try {
-            //lock.acquire();
-            
-            pageTable.put(new Pair(pid, vpn), new TranslationEntry(entry));
-            invertedTable[entry.ppn] = new Pair(pid, vpn);
-        } finally {
-            //lock.release();
-        }
+        lock.acquire();
+
+        pageTable.put(new Pair(pid, vpn), new TranslationEntry(entry));
+        invertedTable[entry.ppn] = new Pair(pid, vpn);
+
+        lock.release();
     }
     
     public TranslationEntry removeEntry(int pid, int vpn) {

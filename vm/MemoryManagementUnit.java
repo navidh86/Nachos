@@ -17,11 +17,11 @@ public class MemoryManagementUnit {
         TranslationEntry entry = VMKernel.table.getEntry(pid, vpn);
         
         if (entry == null) {
-            ///load the page into main memory
+            // load the page into main memory
             int ppn = VMKernel.loader.loadPageIntoMemory(pid, vpn);
-            // System.out.println("loader returned: " + ppn);
             entry = new TranslationEntry(vpn, ppn, true, VMKernel.loader.isReadOnly(pid, vpn), false, false);
-            ///then save put the translation entry into inverted page table
+            
+            // then save put the translation entry into inverted page table
             VMKernel.table.addEntry(pid, vpn, entry);
         }
         
