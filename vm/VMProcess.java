@@ -22,7 +22,7 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
-        
+        VMKernel.mmu.saveStateForContextSwitch(super.getProcessID());
 	super.saveState();
     }
 
@@ -31,8 +31,8 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-        System.out.println("vm restorestate");
-	// super.restoreState();
+        //System.out.println("vm restorestate");
+	//super.restoreState();
     }
 
     /**
@@ -50,7 +50,14 @@ public class VMProcess extends UserProcess {
      */
     protected void unloadSections() {
 	super.unloadSections();
+        VMKernel.loader.removeAllPages(super.getProcessID());
     }    
+    
+    private void handleTLBMiss(int vaddr) {
+        int vpn = Processor.pageFromAddress(vaddr);
+        int pid = super.getProcessID();
+        VMKernel.mmu.loadPageIntoTLB(pid, vpn);
+    }
 
     /**
      * Handle a user exception. Called by
@@ -61,15 +68,20 @@ public class VMProcess extends UserProcess {
      * @param	cause	the user exception that occurred.
      */
     public void handleException(int cause) {
+        boolean intStatus = Machine.interrupt().disable();
+        
 	Processor processor = Machine.processor();
 
 	switch (cause) {
-        case Processor.exceptionTLBMiss:
-            System.out.println("new tlb miss in vaddress: " + processor.readRegister(Processor.regBadVAddr));           
+        case Processor.exceptionTLBMiss: 
+            handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
+            break;
 	default:
 	    super.handleException(cause);
 	    break;
 	}
+        
+        Machine.interrupt().restore(intStatus);
     }
 	
     private static final int pageSize = Processor.pageSize;

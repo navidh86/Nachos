@@ -24,6 +24,9 @@ public class VMKernel extends UserKernel {
 	super.initialize(args);
         VMKernel.disk = new Disk();
         VMKernel.swapArea = new SwapArea();
+        VMKernel.table = new InvertedPageTable();
+        VMKernel.loader = new Loader();
+        VMKernel.mmu = new MemoryManagementUnit();
     }
 
     /**
@@ -44,15 +47,20 @@ public class VMKernel extends UserKernel {
      * Terminate this kernel. Never returns.
      */
     public void terminate() {
+        VMKernel.swapArea.close();
+        System.out.println("\n\n***** Page faults: " + VMKernel.pageFaults + " *****\n\n");
 	super.terminate();
     }
     
     public static Disk disk;
     public static SwapArea swapArea;
+    public static InvertedPageTable table;
+    public static Loader loader;
+    public static MemoryManagementUnit mmu;
+    public static int pageFaults = 0;
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;
 
     private static final char dbgVM = 'v';
-    private static InvertedPageTable table = new InvertedPageTable();
 }

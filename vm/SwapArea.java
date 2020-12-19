@@ -16,9 +16,14 @@ public class SwapArea {
     
     // writes the ppn'th page from main memory to the swapFile, returns the position where it was written
     public int writePage(int ppn) {
-        int physicalAddress = Processor.makeAddress(ppn, 0);
-        
         int pos = getFreePos();
+        return writePageInPosition(ppn, pos);
+    }
+    
+    // writes the ppn'th page from main memory to the swapFile in the specified position
+    public int writePageInPosition(int ppn, int pos) {
+        int physicalAddress = Processor.makeAddress(ppn, 0);
+
         int length = swapFile.write(pos*Processor.pageSize, Machine.processor().getMemory(), physicalAddress, 
                                 Processor.pageSize);
         
@@ -49,7 +54,11 @@ public class SwapArea {
         else {
             return freePositions.remove(0);
         }
-     }
+    }
+    
+    public void close() {
+        swapFile.close();
+    }
     
     private int count; // # of pages allocated on the swapFile
     private List<Integer> freePositions;
